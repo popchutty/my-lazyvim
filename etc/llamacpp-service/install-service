@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# 安装用户级 systemd 服务。
+set -euo pipefail
+
+[[ $EUID -ne 0 ]] || { echo '请以普通用户运行，不要使用 sudo。' >&2; exit 1; }
+source_dir=$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")
+config_dir=${XDG_CONFIG_HOME:-"$HOME/.config"}
+[[ $config_dir == /* ]] || config_dir="$HOME/.config"
+unit=llamacpp-service.service
+destination="$config_dir/systemd/user/$unit"
+marker='# Managed by llamacpp-service/install-service.'
+python_path=$(readlink -f -- "$(command -v python3)")
+
+[[ -r "$source_dir/service/manager.py" && -r "$source_dir/config.json" ]]
+[[ -r "$source_dir/service/$unit" ]]
+if [[ -L $destination ]] || { [[ -e $destination ]] && [[ $(head -n 1 -- "$destination") != "$marker" ]]; }; then
+  echo "已有同名服务不是本脚本安装的，未覆盖：$destination" >&2
+  exit 1
+fi
+systemctl --user show-environment >/dev/null
+
+# 按 systemd 规则转义路径。
+unit_arg() {
+  local value=$1
+  value=${value//\\/\\\\}
+  value=${value//\"/\\\"}
+  value=${value//%/%%}
+  value=${value//$'\n'/\\n}
+  value=${value//$'\r'/\\r}
+  value=${value//$'\t'/\\t}
+  [[ ${2:-} == executable ]] || value=${value//\$/\$\$}
+  printf '"%s"' "$value"
+}
+
+mkdir -p -- "${destination%/*}"
+temporary=$(mktemp "${destination%/*}/.llamacpp-service.XXXXXX")
+trap 'rm -f -- "$temporary"' EXIT
+{
+  printf '%s\n' "$marker"
+  while IFS= read -r line || [[ -n $line ]]; do
+    case $line in
+      ExecStart=*)
+        printf 'ExecStart=%s %s --config %s\n' \
+          "$(unit_arg "$python_path" executable)" \
+          "$(unit_arg "$source_dir/service/manager.py")" \
+          "$(unit_arg "$source_dir/config.json")"
+        ;;
+      *) printf '%s\n' "$line" ;;
+    esac
+  done < "$source_dir/service/$unit"
+} > "$temporary"
+install -m 644 -- "$temporary" "$destination"
+systemctl --user daemon-reload
+systemctl --user try-restart "$unit"
+printf '已安装用户服务：%s\n' "$destination"

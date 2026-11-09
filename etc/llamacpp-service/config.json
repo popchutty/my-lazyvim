@@ -1,0 +1,19 @@
+{
+  "model": "/home/yida/Applications/LocalLLM/models/fim/qwen/Qwen2.5-Coder-14B.Q4_K_M.gguf",
+  "port": 8012,
+  "idle_seconds": 3,
+  "startup_timeout": 120,
+  "args": [
+    "--device", "CUDA0",
+    "--n-gpu-layers", "99",
+    "--ctx-size", "8192",
+    "--parallel", "1",
+    "--flash-attn", "on",
+    "--batch-size", "2048",
+    "--ubatch-size", "512",
+    "--threads", "8",
+    "--cache-type-k", "f16",
+    "--cache-type-v", "f16",
+    "--fit", "off"
+  ]
+}

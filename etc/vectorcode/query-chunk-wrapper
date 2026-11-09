@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# 查询返回相关代码块，其他命令原样转交给 Neovim 指定的 CLI。
+set -euo pipefail
+
+cli=${NVIM_VECTORCODE_CLI:-vectorcode}
+if [[ ${1:-} == query ]]; then
+  exec "$cli" "$@" --include path chunk
+fi
+exec "$cli" "$@"

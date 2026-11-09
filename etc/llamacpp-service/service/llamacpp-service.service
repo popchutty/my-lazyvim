@@ -1,0 +1,17 @@
+# 按需共享 llama.cpp 模型的用户服务。
+[Unit]
+Description=Shared on-demand llama.cpp model service
+
+[Service]
+Type=simple
+ExecStart=@PYTHON@ @MANAGER@ --config @CONFIG@
+RuntimeDirectory=llamacpp-service
+RuntimeDirectoryMode=0700
+# 保留 Neovim 实例登记，避免重启时丢失。
+RuntimeDirectoryPreserve=yes
+UMask=0077
+Restart=on-failure
+RestartSec=3
+KillMode=control-group
+TimeoutStopSec=30
+Environment=PYTHONUNBUFFERED=1

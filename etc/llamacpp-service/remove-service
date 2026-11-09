@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# 停止并卸载用户级 systemd 服务。
+set -euo pipefail
+
+[[ $EUID -ne 0 ]] || { echo '请以普通用户运行，不要使用 sudo。' >&2; exit 1; }
+config_dir=${XDG_CONFIG_HOME:-"$HOME/.config"}
+[[ $config_dir == /* ]] || config_dir="$HOME/.config"
+unit=llamacpp-service.service
+destination="$config_dir/systemd/user/$unit"
+marker='# Managed by llamacpp-service/install-service.'
+
+if [[ ! -e $destination && ! -L $destination ]]; then
+  echo '服务文件不存在，无需移除。'
+  exit 0
+fi
+if [[ -L $destination ]] || [[ $(head -n 1 -- "$destination") != "$marker" ]]; then
+  echo "同名服务不是 install-service 安装的，未移除：$destination" >&2
+  exit 1
+fi
+systemctl --user disable --now "$unit"
+rm -- "$destination"
+systemctl --user daemon-reload
+printf '已停止并移除用户服务：%s\n' "$destination"
